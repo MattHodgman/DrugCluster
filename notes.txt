@@ -1,0 +1,13 @@
+TO DO
+
+convert tsv to csv?
+
+Implement these algorithms
+- FastPG
+- Scanpy
+- flowSOM
+
+I may need to build a docker container that can handle all these
+
+What kind of results do I want?
+- a tsv with the drug name in one column and cluster assignment in the other
