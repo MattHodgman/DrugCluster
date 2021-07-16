@@ -3,8 +3,7 @@
 # 2. number of meta clusters
 # 3. flag to include method name as column
 # 4. output directory
-# 5. output file name for cell/cluster assignment
-# 6. output file name for cluster mean feature values
+# 5. output file name for drug/cluster assignment
 
 
 # paramenters we could edit
@@ -43,19 +42,10 @@ Cluster <- GetClusters(fSOM)
 # get raw input data and add clusters
 data_raw <- cbind(Cluster, exprs(data))
 
-# make cells.csv
-cells <- data_raw[,c('CellID','Cluster')]
+# make clusters.csv
+cells <- data_raw[,c('Drug','Cluster')]
 if (as.logical(args[3])) { # inlcude method column
     Method <- rep(c('FastPG'),nrow(cells))
     cells <- cbind(cells, Method)
 }
 write.table(cells,file=paste(args[4], args[5], sep='/'), row.names=FALSE, quote=FALSE, sep=',') # write data to csv
-
-# make clusters.csv
-clusterData <- aggregate(subset(data_raw, select=-c(CellID)), list(data_raw[,'Cluster']), mean) # group feature/expression data by cluster and find mean expression for each cluster, remove CellID column
-clusterData <- subset(clusterData, select=-c(Group.1)) # remove group number column because is identical to community assignation number
-if (as.logical(args[3])) { # inlcude method column
-    Method <- rep(c('FastPG'),nrow(clusterData))
-    clusterData <- cbind(clusterData, Method)
-}
-write.table(clusterData,file=paste(args[4], args[6], sep='/'),row.names=FALSE,quote=FALSE,sep=',') # write data to csv
