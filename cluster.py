@@ -1,8 +1,5 @@
 import argparse
-import numpy as np
 import pandas as pd
-import scanpy as sc
-import anndata as ad
 import subprocess
 import os
 
@@ -15,9 +12,10 @@ def parseArgs():
     parser.add_argument('-i', '--input', help="Input CSV of mcmicro marker expression data for cells", type=str, required=True)
     parser.add_argument('-o', '--output', help='The directory to which output files will be saved', type=str, required=False)
     parser.add_argument('-k', '--neighbors', help='the number of nearest neighbors to use when clustering. The default is 30.', default=30, type=int, required=False)
-    parser.add_argument('-c', '--method', help='Include a column with the method name in the output files.', action="store_true", required=False)
+    parser.add_argument('-c', '--method', help='Include a column with the method name in the output files.', action='store_true', required=False)
     parser.add_argument('-a', '--algorithm', help='Which clustering algorithm to use. Options are FastPG, Scanpy, or FlowSOM.', type=str, required=True)
-    parser.add_argument('-n', '--num-metaclusters', help='number of clusters for meta-clustering.', type=int, required=False, default=10)
+    parser.add_argument('-n', '--num-metaclusters', help='Number of clusters for meta-clustering.', type=int, required=False, default=10)
+    parser.add_argument('-v', '--verbose', help='Print script info to stdout.', action='store_true', required=False)
     args = parser.parse_args()
     return args
 
@@ -45,14 +43,14 @@ def getDataName(path):
 Write clusters_file from leidenCluster() adata
 '''
 def writeClusters(adata):
-    cells = pd.DataFrame(adata.obs[DRUG].astype(int)) # extract cell IDs to dataframe
-    cells[CLUSTER] = adata.obs[LEIDEN] # extract and add cluster assignments to cells dataframe
+    drugs = pd.DataFrame(adata.obs) # extract cell IDs to dataframe
+    drugs.index.name=DRUG
 
     # add in method column if requested
     if args.method:
-        cells[METHOD] = SCANPY
+        drugs[METHOD] = SCANPY
 
-    cells.to_csv(f'{output}/{clusters_file}', index=False)
+    drugs.to_csv(f'{output}/{clusters_file}')
 
 
 '''
@@ -60,17 +58,14 @@ Cluster data using the Leiden algorithm via scanpy
 '''
 def leidenCluster():
 
-    sc.settings.verbosity = 3 # print out information
-    adata_init = sc.read(f'{output}/{data_file}', cache=True) # load in clean data
+    import scanpy as sc
 
-    # move CellID info into .obs
-    # this assumes that 'CELL_ID' is the first column in the csv
-    adata_init.obs[DRUG] = adata_init.X[:,0]
-    adata = ad.AnnData(np.delete(adata_init.X, 0, 1), obs=adata_init.obs, var=adata_init.var.drop([DRUG]))
+    sc.settings.verbosity = 3 # print out information
+    adata = sc.read(f'{data_file}', cache=True) # load in data NOTE: drug names are automatically made the index
 
     # compute neighbors and cluster
     sc.pp.neighbors(adata, n_neighbors=args.neighbors, n_pcs=10) # compute neighbors, using the number of neighbors provided in the command line. Default is 30.
-    sc.tl.leiden(adata, key_added = LEIDEN, resolution=1.0) # run leidan clustering. default resolution is 1.0
+    sc.tl.leiden(adata, key_added=CLUSTER, resolution=1.0) # run leidan clustering. default resolution is 1.0
 
     # write cluster assignments 'CLUSTERS_FILE'
     writeClusters(adata)
@@ -165,7 +160,6 @@ if __name__ == '__main__':
     # constants
     DRUG = 'Drug' # column name holding drug name
     CLUSTER = 'Cluster' # column name holding cluster number
-    LEIDEN = 'leiden' # obs name for cluster assignment
     METHOD = 'Method' # name of column containing the method for clustering
     SCANPY = 'Scanpy' # the name of this method
     FASTPG = 'FastPG'
@@ -173,7 +167,7 @@ if __name__ == '__main__':
     
     # file names
     data_prefix = getDataName(args.input) # get the name of the input data file to add as a prefix to the output file names
-    data_file = f'{data_prefix}.csv'
+    data_file = args.input
     data_fcs_file = f'{data_prefix}.fcs' # name of output data CSV file
     clusters_file = f'{data_prefix}-clusters.csv' # name of output CSV file that contains the cluster assignment for each drug
     
