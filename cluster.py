@@ -13,9 +13,10 @@ def parseArgs():
     parser.add_argument('-o', '--output', help='The directory to which output files will be saved', type=str, required=False)
     parser.add_argument('-k', '--neighbors', help='the number of nearest neighbors to use when clustering. The default is 30.', default=30, type=int, required=False)
     parser.add_argument('-c', '--method', help='Include a column with the method name in the output files.', action='store_true', required=False)
-    parser.add_argument('-a', '--algorithm', help='Which clustering algorithm to use. Options are FastPG, Scanpy, or FlowSOM.', type=str, required=True)
-    parser.add_argument('-n', '--num-metaclusters', help='Number of clusters for meta-clustering.', type=int, required=False, default=10)
+    parser.add_argument('-a', '--algorithm', help='Which clustering algorithm to use. Options are FastPG or Scanpy.', type=str, required=True)
+    parser.add_argument('-n', '--num-metaclusters', help='Number of clusters for meta-clustering.', type=int, required=False, default=30)
     parser.add_argument('-v', '--verbose', help='Print script info to stdout.', action='store_true', required=False)
+    parser.add_argument('-t', '--num-threads', help='the number of cpus to use during the k nearest neighbors part of clustering. The default is 1.', default=1, type=int, required=False)
     args = parser.parse_args()
     return args
 
@@ -72,54 +73,6 @@ def leidenCluster():
 
 
 '''
-Run an R script that converts the clean data csv into fcs format
-'''
-def convertToFSC():
-    if args.verbose:
-        print('Converting CSV to FCS...')
-
-    path = get_path() # get the path where the r script is located
-
-    # Build subprocess command
-    r_script = ['Rscript', f'{path}/CSVtoFCS.r'] # use CSVtoFCS.r script
-
-    # pass args
-    r_args = [output, data_file]
-
-    # Build subprocess command
-    command = r_script + r_args
-
-    # run it
-    subprocess.run(command, universal_newlines=True)
-
-    if args.verbose:
-        print('Done.')
-
-
-'''
-Run an R script that runs flowSOM
-'''
-def runFlowSOM():
-    if args.verbose:
-        print('Running flowSOM...')
-
-    path = get_path() # get the path where the r script is located
-
-    r_script = ['Rscript', f'{path}/runFlowSOM.r'] # use FastPG.r script
-    # pass input data file, k value, number of cpus to use for the k nearest neighbors part of clustering, output dir, cells file name, clusters file name
-    r_args = [f'{output}/{data_fcs_file}', str(args.num_metaclusters), str(args.method), output, clusters_file]
-
-    # Build subprocess command
-    command = r_script + r_args
-
-    # run it
-    subprocess.run(command, universal_newlines=True)
-
-    if args.verbose:
-        print('Done.')
-
-
-'''
 Run an R script that runs FastPG. Scriptception.
 '''
 def runFastPG():
@@ -163,12 +116,10 @@ if __name__ == '__main__':
     METHOD = 'Method' # name of column containing the method for clustering
     SCANPY = 'Scanpy' # the name of this method
     FASTPG = 'FastPG'
-    FLOWSOM = 'FlowSOM'
     
     # file names
     data_prefix = getDataName(args.input) # get the name of the input data file to add as a prefix to the output file names
     data_file = args.input
-    data_fcs_file = f'{data_prefix}.fcs' # name of output data CSV file
     clusters_file = f'{data_prefix}-clusters.csv' # name of output CSV file that contains the cluster assignment for each drug
     
     # Select clustering algorithm
@@ -177,6 +128,3 @@ if __name__ == '__main__':
         runFastPG()
     elif algorithm == SCANPY:
         leidenCluster()
-    elif algorithm == FLOWSOM:
-        convertToFSC()
-        runFlowSOM()
